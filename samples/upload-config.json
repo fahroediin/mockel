@@ -1,0 +1,102 @@
+{
+  "name": "Upload Configuration Schema",
+  "description": "Configuration schema for file upload settings",
+  "fields": [
+    {
+      "name": "allowedTypes",
+      "type": "array",
+      "constraints": {
+        "minItems": 1,
+        "maxItems": 20,
+        "itemType": "string"
+      }
+    },
+    {
+      "name": "maxFileSize",
+      "type": "number",
+      "constraints": {
+        "min": 1024,
+        "max": 1073741824
+      }
+    },
+    {
+      "name": "maxFiles",
+      "type": "number",
+      "constraints": {
+        "min": 1,
+        "max": 100
+      }
+    },
+    {
+      "name": "uploadPath",
+      "type": "string",
+      "constraints": {
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    {
+      "name": "enableValidation",
+      "type": "boolean",
+      "constraints": {}
+    },
+    {
+      "name": "generateThumbnails",
+      "type": "boolean",
+      "constraints": {}
+    },
+    {
+      "name": "autoRename",
+      "type": "boolean",
+      "constraints": {}
+    },
+    {
+      "name": "requireAuth",
+      "type": "boolean",
+      "constraints": {}
+    },
+    {
+      "name": "allowedRoles",
+      "type": "array",
+      "constraints": {
+        "minItems": 0,
+        "maxItems": 10,
+        "itemType": "string"
+      }
+    },
+    {
+      "name": "validation",
+      "type": "object",
+      "nestedSchema": [
+        {
+          "name": "imageMinWidth",
+          "type": "number",
+          "constraints": {
+            "min": 1,
+            "max": 10000
+          }
+        },
+        {
+          "name": "imageMinHeight",
+          "type": "number",
+          "constraints": {
+            "min": 1,
+            "max": 10000
+          }
+        },
+        {
+          "name": "requireAspectRatio",
+          "type": "boolean",
+          "constraints": {}
+        },
+        {
+          "name": "aspectRatio",
+          "type": "string",
+          "constraints": {
+            "maxLength": 10
+          }
+        }
+      ]
+    }
+  ]
+}

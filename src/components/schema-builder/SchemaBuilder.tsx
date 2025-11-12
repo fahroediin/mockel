@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { FileUpload } from '../ui/upload';
 import { FieldEditor } from './FieldEditor';
-import { Plus, Edit, Trash2, FileJson } from 'lucide-react';
+import { Plus, Edit, Trash2, FileJson, Upload } from 'lucide-react';
 import { DataField, Schema } from '../../types';
 
 interface SchemaBuilderProps {
@@ -14,6 +15,7 @@ interface SchemaBuilderProps {
 export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaChange }) => {
   const [editingField, setEditingField] = useState<DataField | null>(null);
   const [showFieldEditor, setShowFieldEditor] = useState(false);
+  const [showUpload, setShowUpload] = useState(false);
 
   const getDataTypeLabel = (type: string): string => {
     const labels: { [key: string]: string } = {
@@ -116,6 +118,151 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
     URL.revokeObjectURL(url);
   };
 
+  const handleSchemaUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    try {
+      const file = files[0];
+      const text = await file.text();
+      const uploadedSchema = JSON.parse(text);
+
+      // Validate the uploaded schema structure
+      if (!uploadedSchema.name || !uploadedSchema.fields || !Array.isArray(uploadedSchema.fields)) {
+        alert('Invalid schema format. Please check your JSON file.');
+        return;
+      }
+
+      // Convert uploaded schema to our format
+      const convertedFields: DataField[] = uploadedSchema.fields.map((field: any, index: number) => ({
+        id: field.id || `field_${Date.now()}_${index}`,
+        name: field.name,
+        type: field.type,
+        constraints: field.constraints,
+        nestedSchema: field.nestedSchema,
+      }));
+
+      const newSchema: Schema = {
+        id: schema.id,
+        name: uploadedSchema.name,
+        description: uploadedSchema.description || '',
+        fields: convertedFields,
+      };
+
+      onSchemaChange(newSchema);
+      setShowUpload(false);
+    } catch (error) {
+      console.error('Error uploading schema:', error);
+      alert('Failed to parse schema file. Please ensure it\'s a valid JSON file.');
+    }
+  };
+
+  const handleSampleSchema = () => {
+    // Sample upload schema defined inline
+    const sampleSchema = {
+      name: "File Upload Schema",
+      description: "Schema for handling file uploads with metadata",
+      fields: [
+        {
+          name: "id",
+          type: "uuid",
+          constraints: {
+            required: true
+          }
+        },
+        {
+          name: "originalName",
+          type: "string",
+          constraints: {
+            minLength: 1,
+            maxLength: 255,
+            required: true
+          }
+        },
+        {
+          name: "fileName",
+          type: "string",
+          constraints: {
+            minLength: 1,
+            maxLength: 255,
+            required: true
+          }
+        },
+        {
+          name: "mimeType",
+          type: "string",
+          constraints: {
+            minLength: 3,
+            maxLength: 100,
+            required: true
+          }
+        },
+        {
+          name: "size",
+          type: "number",
+          constraints: {
+            min: 0,
+            max: 104857600,
+            required: true
+          }
+        },
+        {
+          name: "uploadedAt",
+          type: "date",
+          constraints: {
+            required: true
+          }
+        },
+        {
+          name: "metadata",
+          type: "object",
+          nestedSchema: [
+            {
+              name: "width",
+              type: "number",
+              constraints: {
+                min: 1,
+                max: 99999
+              }
+            },
+            {
+              name: "height",
+              type: "number",
+              constraints: {
+                min: 1,
+                max: 99999
+              }
+            },
+            {
+              name: "checksum",
+              type: "string",
+              constraints: {
+                minLength: 32,
+                maxLength: 64
+              }
+            }
+          ]
+        }
+      ]
+    };
+
+    const convertedFields: DataField[] = sampleSchema.fields.map((field: any, index: number) => ({
+      id: `field_${Date.now()}_${index}`,
+      name: field.name,
+      type: field.type,
+      constraints: field.constraints,
+      nestedSchema: field.nestedSchema,
+    }));
+
+    const newSchema: Schema = {
+      id: schema.id,
+      name: sampleSchema.name,
+      description: sampleSchema.description,
+      fields: convertedFields,
+    };
+
+    onSchemaChange(newSchema);
+  };
+
   const renderConstraints = (field: DataField): string => {
     const constraints = field.constraints;
     if (!constraints) return '';
@@ -173,15 +320,51 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
     );
   }
 
+  if (showUpload) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Import Schema</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FileUpload
+            accept=".json"
+            maxFiles={1}
+            onFilesChange={handleSchemaUpload}
+            className="mb-4"
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowUpload(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleSampleSchema}
+            >
+              Load Upload Sample
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Schema Configuration</CardTitle>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowUpload(true)}>
+              <Upload className="w-4 h-4 mr-2" />
+              Import
+            </Button>
             <Button variant="outline" size="sm" onClick={exportSchema}>
               <FileJson className="w-4 h-4 mr-2" />
-              Export Schema
+              Export
             </Button>
             <Button onClick={handleAddField}>
               <Plus className="w-4 h-4 mr-2" />

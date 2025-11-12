@@ -2,10 +2,29 @@ import { serve } from "bun";
 import index from "./index.html";
 import { mockService } from "./services/mockService";
 
+// Configuration from environment variables
+const config = {
+  port: parseInt(process.env.PORT || "3001"),
+  host: process.env.HOST || "localhost",
+  nodeEnv: process.env.NODE_ENV || "development",
+  apiVersion: process.env.API_VERSION || "1.0.0",
+  maxFileSize: parseInt(process.env.MAX_FILE_SIZE || "52428800"), // 50MB default
+  allowedFileTypes: process.env.ALLOWED_FILE_TYPES?.split(",") || ["jpg", "jpeg", "png", "gif", "pdf", "doc", "docx"]
+};
+
+console.log(`📋 Server Configuration:`);
+console.log(`   Port: ${config.port}`);
+console.log(`   Host: ${config.host}`);
+console.log(`   Environment: ${config.nodeEnv}`);
+console.log(`   Max File Size: ${(config.maxFileSize / 1024 / 1024).toFixed(2)}MB`);
+console.log(`   Allowed File Types: ${config.allowedFileTypes.join(", ")}`);
+
 // In-memory storage for mock endpoints (in production, use a database)
 const mockEndpoints = new Map();
 
 const server = serve({
+  port: config.port,
+  hostname: config.host,
   routes: {
     // Serve index.html for all unmatched routes.
     "/*": index,
@@ -180,7 +199,42 @@ const server = serve({
       return Response.json({
         status: "ok",
         timestamp: new Date().toISOString(),
-        version: "1.0.0"
+        version: config.apiVersion,
+        server: {
+          port: config.port,
+          host: config.host,
+          environment: config.nodeEnv,
+          uptime: process.uptime?.() || 0
+        },
+        config: {
+          maxFileSize: config.maxFileSize,
+          allowedFileTypes: config.allowedFileTypes
+        }
+      });
+    },
+
+    // Configuration endpoint
+    "/api/config": async () => {
+      return Response.json({
+        server: {
+          port: config.port,
+          host: config.host,
+          environment: config.nodeEnv
+        },
+        upload: {
+          maxFileSize: config.maxFileSize,
+          maxFileSizeMB: Math.round(config.maxFileSize / 1024 / 1024),
+          allowedFileTypes: config.allowedFileTypes
+        },
+        api: {
+          version: config.apiVersion,
+          endpoints: {
+            health: "/api/health",
+            config: "/api/config",
+            projects: "/api/projects",
+            generate: "/api/generate"
+          }
+        }
       });
     },
 
@@ -223,6 +277,9 @@ const server = serve({
   },
 });
 
-console.log(`🚀 Mock Data Generator API running at ${server.url}`);
-console.log(`📊 Dashboard: ${server.url}`);
-console.log(`🔧 API Health: ${server.url}/api/health`);
+console.log(`\n🚀 Mock Data Generator API`);
+console.log(`📊 Dashboard: http://${config.host}:${config.port}/`);
+console.log(`🔧 API Health: http://${config.host}:${config.port}/api/health`);
+console.log(`⚙️  Configuration: http://${config.host}:${config.port}/api/config`);
+console.log(`\n📋 Environment: ${config.nodeEnv}`);
+console.log(`🌐 Server running on ${config.host}:${config.port}`);

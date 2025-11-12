@@ -6,8 +6,9 @@
   "main": "src/index.tsx",
   "module": "src/index.tsx",
   "scripts": {
-    "dev": "bun --hot src/index.tsx",
-    "start": "NODE_ENV=production bun src/index.tsx",
+    "dev": "bun --port 3001 --hot src/index.tsx",
+    "dev:8080": "bun --port 8080 --hot src/index.tsx",
+    "start": "NODE_ENV=production bun --port 3001 src/index.tsx",
     "build": "bun run build.ts"
   },
   "dependencies": {

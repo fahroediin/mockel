@@ -1,0 +1,118 @@
+{
+  "name": "File Upload Schema",
+  "description": "Schema for handling file uploads with metadata",
+  "fields": [
+    {
+      "name": "id",
+      "type": "uuid",
+      "constraints": {
+        "required": true
+      }
+    },
+    {
+      "name": "originalName",
+      "type": "string",
+      "constraints": {
+        "minLength": 1,
+        "maxLength": 255,
+        "required": true
+      }
+    },
+    {
+      "name": "fileName",
+      "type": "string",
+      "constraints": {
+        "minLength": 1,
+        "maxLength": 255,
+        "required": true
+      }
+    },
+    {
+      "name": "mimeType",
+      "type": "string",
+      "constraints": {
+        "minLength": 3,
+        "maxLength": 100,
+        "required": true
+      }
+    },
+    {
+      "name": "size",
+      "type": "number",
+      "constraints": {
+        "min": 0,
+        "max": 104857600,
+        "required": true
+      }
+    },
+    {
+      "name": "category",
+      "type": "string",
+      "constraints": {
+        "minLength": 1,
+        "maxLength": 50
+      }
+    },
+    {
+      "name": "uploadedAt",
+      "type": "date",
+      "constraints": {
+        "required": true
+      }
+    },
+    {
+      "name": "description",
+      "type": "paragraph",
+      "constraints": {
+        "minWords": 0,
+        "maxWords": 200
+      }
+    },
+    {
+      "name": "tags",
+      "type": "array",
+      "constraints": {
+        "minItems": 0,
+        "maxItems": 10,
+        "itemType": "string"
+      }
+    },
+    {
+      "name": "metadata",
+      "type": "object",
+      "nestedSchema": [
+        {
+          "name": "width",
+          "type": "number",
+          "constraints": {
+            "min": 1,
+            "max": 99999
+          }
+        },
+        {
+          "name": "height",
+          "type": "number",
+          "constraints": {
+            "min": 1,
+            "max": 99999
+          }
+        },
+        {
+          "name": "format",
+          "type": "string",
+          "constraints": {
+            "maxLength": 20
+          }
+        },
+        {
+          "name": "checksum",
+          "type": "string",
+          "constraints": {
+            "minLength": 32,
+            "maxLength": 64
+          }
+        }
+      ]
+    }
+  ]
+}
