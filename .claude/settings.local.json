@@ -3,7 +3,8 @@
     "allow": [
       "Bash(bun run dev)",
       "Bash(bun tsc:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(bun:*)"
     ],
     "deny": [],
     "ask": []
