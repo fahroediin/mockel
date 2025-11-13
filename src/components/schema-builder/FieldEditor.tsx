@@ -27,6 +27,10 @@ const fieldSchema = z.object({
     startDate: z.string().optional(),
     endDate: z.string().optional(),
     format: z.string().optional(),
+    prefix: z.string().optional(),
+    suffix: z.string().optional(),
+    pattern: z.string().optional(),
+    padLength: z.number().optional(),
   }).optional(),
 });
 
@@ -107,6 +111,51 @@ export const FieldEditor: React.FC<FieldEditorProps> = ({ field, onSave, onCance
         return (
           <div className="space-y-3 border rounded-lg p-4 bg-gray-50">
             <Label className="text-sm font-medium">String Constraints</Label>
+
+            {/* Prefix/Suffix/Pattern Section */}
+            <div className="space-y-3 border-b border-gray-200 pb-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="prefix">Prefix (Optional)</Label>
+                  <Input
+                    id="prefix"
+                    placeholder="e.g., PC-, P-, ORD-"
+                    {...register('constraints.prefix')}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="suffix">Suffix (Optional)</Label>
+                  <Input
+                    id="suffix"
+                    placeholder="e.g., -ID, -NUM"
+                    {...register('constraints.suffix')}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="pattern">Pattern (Optional)</Label>
+                  <Input
+                    id="pattern"
+                    placeholder="e.g., PC-###, P-????"
+                    {...register('constraints.pattern')}
+                  />
+                  <p className="text-xs text-gray-500 mt-1"># for numbers, ? for letters</p>
+                </div>
+                <div>
+                  <Label htmlFor="padLength">Number Length</Label>
+                  <Input
+                    type="number"
+                    id="padLength"
+                    placeholder="e.g., 5"
+                    {...register('constraints.padLength', { valueAsNumber: true })}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Used for padding numbers with zeros</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Length Constraints */}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label htmlFor="minLength">Min Length</Label>

@@ -4,7 +4,8 @@
       "Bash(bun run dev)",
       "Bash(bun tsc:*)",
       "Bash(curl:*)",
-      "Bash(bun:*)"
+      "Bash(bun:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

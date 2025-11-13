@@ -1,4 +1,4 @@
-import { MockProject, Schema, DataField } from '../types';
+import type { MockProject, Schema, DataField } from '../types';
 
 class DataStorage {
   private projects: MockProject[] = [];
@@ -28,16 +28,17 @@ class DataStorage {
     }
   }
 
-  createProject(name: string, baseEndpoint: string): MockProject {
+  createProject(name: string, baseEndpoint: string, schema?: Schema, mockData?: any[]): MockProject {
     const project: MockProject = {
       id: this.generateId(),
       name,
       baseEndpoint,
-      schema: {
+      schema: schema || {
         id: this.generateId(),
         name: `${name} Schema`,
         fields: []
       },
+      mockData: mockData || [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };

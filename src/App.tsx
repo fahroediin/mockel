@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { ProjectList } from './components/dashboard/ProjectList';
 import { ProjectEditor } from './components/dashboard/ProjectEditor';
 import { useProjects, useDataGeneration } from './hooks/useApi';
-import { MockProject, Schema, GenerationConfig } from './types';
+import { dataStorage } from './data/storage';
+import type { MockProject, Schema, GenerationConfig } from './types';
 import "./index.css";
 
 type View = 'list' | 'editor' | 'viewer';
 
 export function App() {
-  const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
+  const { projects, loading, createProject, updateProject, deleteProject, fetchProjects } = useProjects();
   const { generateData } = useDataGeneration();
   const [currentView, setCurrentView] = useState<View>('list');
   const [selectedProject, setSelectedProject] = useState<MockProject | null>(null);
@@ -25,15 +26,27 @@ export function App() {
 
   const handleSaveProject = async (project: MockProject) => {
     try {
+      let savedProject: MockProject;
+
       if (selectedProject) {
-        await updateProject(project.id, project);
+        // Update existing project
+        savedProject = await updateProject(project.id, project);
       } else {
-        await createProject(project);
+        // Create new project with all data in one call
+        savedProject = await createProject({
+          name: project.name,
+          baseEndpoint: project.baseEndpoint,
+          schema: project.schema,
+          mockData: project.mockData || []
+        });
       }
+
       setCurrentView('list');
       setSelectedProject(null);
+      return savedProject;
     } catch (error) {
       console.error('Failed to save project:', error);
+      throw error;
     }
   };
 

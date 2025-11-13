@@ -77,11 +77,28 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
 
     setIsGenerating(true);
     try {
-      await onGenerateData(
-        project?.id || '',
-        schema,
-        generationConfig
-      );
+      let projectId = project?.id;
+
+      // If this is a new project, save it first to get an ID
+      if (!projectId) {
+        const projectName = watch('name') || 'Untitled Project';
+        const baseEndpoint = watch('baseEndpoint') || '/api/default';
+
+        const projectToSave: MockProject = {
+          id: '', // Will be assigned by createProject
+          name: projectName,
+          baseEndpoint,
+          schema,
+          mockData: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        const savedProject = await onSave(projectToSave);
+        projectId = savedProject.id;
+      }
+
+      await onGenerateData(projectId, schema, generationConfig);
     } catch (error) {
       console.error('Failed to generate data:', error);
       alert('Failed to generate mock data. Please try again.');

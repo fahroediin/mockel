@@ -19,8 +19,51 @@ console.log(`   Environment: ${config.nodeEnv}`);
 console.log(`   Max File Size: ${(config.maxFileSize / 1024 / 1024).toFixed(2)}MB`);
 console.log(`   Allowed File Types: ${config.allowedFileTypes.join(", ")}`);
 
-// In-memory storage for mock endpoints (in production, use a database)
-const mockEndpoints = new Map();
+// In-memory storage that syncs with frontend localStorage
+const projects = new Map();
+
+// Helper functions for project storage
+const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+const createProject = (name: string, baseEndpoint: string, schema?: any, mockData?: any[]) => {
+  const project = {
+    id: generateId(),
+    name,
+    baseEndpoint,
+    schema: schema || {
+      id: generateId(),
+      name: `${name} Schema`,
+      fields: []
+    },
+    mockData: mockData || [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  projects.set(project.id, project);
+  return project;
+};
+
+const getProject = (id: string) => projects.get(id);
+
+const updateProject = (id: string, updates: any) => {
+  const project = projects.get(id);
+  if (!project) return null;
+
+  const updatedProject = {
+    ...project,
+    ...updates,
+    id,
+    updatedAt: new Date().toISOString()
+  };
+
+  projects.set(id, updatedProject);
+  return updatedProject;
+};
+
+const deleteProject = (id: string) => projects.delete(id);
+
+const getAllProjects = () => Array.from(projects.values());
 
 const server = serve({
   port: config.port,
@@ -32,30 +75,23 @@ const server = serve({
     // Projects API
     "/api/projects": {
       async GET(req) {
-        return Response.json(Array.from(mockEndpoints.values()));
+        return Response.json(getAllProjects());
       },
       async POST(req) {
         try {
-          const project = await req.json();
-          const mockProject = {
-            ...project,
-            id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          };
-
-          mockEndpoints.set(mockProject.id, mockProject);
-
-          return Response.json(mockProject, { status: 201 });
+          const projectData = await req.json();
+          const newProject = createProject(projectData.name, projectData.baseEndpoint, projectData.schema, projectData.mockData);
+          return Response.json(newProject, { status: 201 });
         } catch (error) {
-          return Response.json({ error: "Invalid JSON" }, { status: 400 });
+          console.error('Create project error:', error);
+          return Response.json({ error: "Failed to create project" }, { status: 500 });
         }
       },
     },
 
     "/api/projects/:id": {
       async GET(req) {
-        const project = mockEndpoints.get(req.params.id);
+        const project = getProject(req.params.id);
         if (!project) {
           return Response.json({ error: "Project not found" }, { status: 404 });
         }
@@ -63,28 +99,20 @@ const server = serve({
       },
       async PUT(req) {
         try {
-          const project = mockEndpoints.get(req.params.id);
-          if (!project) {
+          const updates = await req.json();
+          const updatedProject = updateProject(req.params.id, updates);
+          if (!updatedProject) {
             return Response.json({ error: "Project not found" }, { status: 404 });
           }
-
-          const updates = await req.json();
-          const updatedProject = {
-            ...project,
-            ...updates,
-            id: req.params.id,
-            updatedAt: new Date().toISOString()
-          };
-
-          mockEndpoints.set(req.params.id, updatedProject);
           return Response.json(updatedProject);
         } catch (error) {
-          return Response.json({ error: "Invalid JSON" }, { status: 400 });
+          console.error('Update project error:', error);
+          return Response.json({ error: "Failed to update project" }, { status: 500 });
         }
       },
       async DELETE(req) {
-        const deleted = mockEndpoints.delete(req.params.id);
-        if (!deleted) {
+        const success = deleteProject(req.params.id);
+        if (!success) {
           return Response.json({ error: "Project not found" }, { status: 404 });
         }
         return Response.json({ message: "Project deleted successfully" });
@@ -114,7 +142,7 @@ const server = serve({
     // Dynamic mock endpoints
     "/api/mock/:projectId/*": async req => {
       const projectId = req.params.projectId;
-      const project = mockEndpoints.get(projectId);
+      const project = getProject(projectId);
 
       if (!project) {
         return Response.json({ error: "Mock endpoint not found" }, { status: 404 });
@@ -136,15 +164,16 @@ const server = serve({
         case "POST":
           try {
             const newRecord = await req.json();
-            const updatedData = [...(project.mockData || []), newRecord];
+            const updatedData = [...(project.mockData || []), { ...newRecord, id: Date.now().toString() }];
 
-            const updatedProject = {
-              ...project,
+            const updatedProject = updateProject(projectId, {
               mockData: updatedData,
               updatedAt: new Date().toISOString()
-            };
+            });
 
-            mockEndpoints.set(projectId, updatedProject);
+            if (!updatedProject) {
+              return Response.json({ error: "Failed to update project" }, { status: 500 });
+            }
 
             return Response.json(newRecord, { status: 201 });
           } catch (error) {
@@ -164,13 +193,14 @@ const server = serve({
               record.id === recordId ? updatedRecord : record
             );
 
-            const updatedProject = {
-              ...project,
+            const updatedProject = updateProject(projectId, {
               mockData: updatedData,
               updatedAt: new Date().toISOString()
-            };
+            });
 
-            mockEndpoints.set(projectId, updatedProject);
+            if (!updatedProject) {
+              return Response.json({ error: "Failed to update project" }, { status: 500 });
+            }
 
             return Response.json(updatedRecord);
           } catch (error) {
@@ -179,13 +209,14 @@ const server = serve({
 
         case "DELETE":
           // Clear all mock data
-          const updatedProject = {
-            ...project,
+          const updatedProject = updateProject(projectId, {
             mockData: [],
             updatedAt: new Date().toISOString()
-          };
+          });
 
-          mockEndpoints.set(projectId, updatedProject);
+          if (!updatedProject) {
+            return Response.json({ error: "Failed to update project" }, { status: 500 });
+          }
 
           return Response.json({ message: "All mock data cleared" });
 

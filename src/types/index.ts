@@ -34,6 +34,12 @@ export interface FieldConstraints {
   startDate?: string;
   endDate?: string;
   format?: string;
+
+  // Prefix/Pattern constraints
+  prefix?: string;
+  pattern?: string;
+  suffix?: string;
+  padLength?: number;
 }
 
 export interface Schema {

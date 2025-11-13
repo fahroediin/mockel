@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { MockProject, Schema, GenerationConfig } from '../types';
-
-const API_BASE = '/api';
+import type { MockProject, Schema, GenerationConfig } from '../types';
+import { dataStorage } from '../data/storage';
+import { mockService } from '../services/mockService';
 
 export const useProjects = () => {
   const [projects, setProjects] = useState<MockProject[]>([]);
@@ -11,11 +11,7 @@ export const useProjects = () => {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/projects`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch projects');
-      }
-      const data = await response.json();
+      const data = dataStorage.getProjects();
       setProjects(data);
       setError(null);
     } catch (err) {
@@ -27,19 +23,12 @@ export const useProjects = () => {
 
   const createProject = async (projectData: Omit<MockProject, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      const response = await fetch(`${API_BASE}/projects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(projectData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create project');
-      }
-
-      const newProject = await response.json();
+      const newProject = dataStorage.createProject(
+        projectData.name,
+        projectData.baseEndpoint,
+        projectData.schema,
+        projectData.mockData
+      );
       setProjects(prev => [...prev, newProject]);
       return newProject;
     } catch (err) {
@@ -50,19 +39,10 @@ export const useProjects = () => {
 
   const updateProject = async (id: string, updates: Partial<MockProject>) => {
     try {
-      const response = await fetch(`${API_BASE}/projects/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update project');
+      const updatedProject = dataStorage.updateProject(id, updates);
+      if (!updatedProject) {
+        throw new Error('Project not found');
       }
-
-      const updatedProject = await response.json();
       setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
       return updatedProject;
     } catch (err) {
@@ -73,14 +53,10 @@ export const useProjects = () => {
 
   const deleteProject = async (id: string) => {
     try {
-      const response = await fetch(`${API_BASE}/projects/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete project');
+      const success = dataStorage.deleteProject(id);
+      if (!success) {
+        throw new Error('Project not found');
       }
-
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -112,20 +88,8 @@ export const useDataGeneration = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ schema, config }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate data');
-      }
-
-      const result = await response.json();
-      return result.data;
+      const data = mockService.generateMockData(schema, config);
+      return data;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       throw err;
@@ -151,14 +115,12 @@ export const useMockEndpoint = (projectId: string) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/mock/${projectId}/${endpoint.replace(/^\//, '')}`);
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch mock data');
+      const project = dataStorage.getProject(projectId);
+      if (!project) {
+        throw new Error('Project not found');
       }
 
-      const result = await response.json();
-      setData(result.data || []);
+      setData(project.mockData || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -168,20 +130,16 @@ export const useMockEndpoint = (projectId: string) => {
 
   const addRecord = async (endpoint: string, record: any) => {
     try {
-      const response = await fetch(`${API_BASE}/mock/${projectId}/${endpoint.replace(/^\//, '')}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(record),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add record');
+      const project = dataStorage.getProject(projectId);
+      if (!project) {
+        throw new Error('Project not found');
       }
 
-      const newRecord = await response.json();
-      setData(prev => [...prev, newRecord]);
+      const newRecord = { ...record, id: Date.now().toString() };
+      const updatedData = [...(project.mockData || []), newRecord];
+
+      dataStorage.updateMockData(projectId, updatedData);
+      setData(updatedData);
       return newRecord;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -191,21 +149,18 @@ export const useMockEndpoint = (projectId: string) => {
 
   const updateRecord = async (endpoint: string, record: any) => {
     try {
-      const response = await fetch(`${API_BASE}/mock/${projectId}/${endpoint.replace(/^\//, '')}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(record),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to update record');
+      const project = dataStorage.getProject(projectId);
+      if (!project) {
+        throw new Error('Project not found');
       }
 
-      const updatedRecord = await response.json();
-      setData(prev => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
-      return updatedRecord;
+      const updatedData = (project.mockData || []).map(r =>
+        r.id === record.id ? record : r
+      );
+
+      dataStorage.updateMockData(projectId, updatedData);
+      setData(updatedData);
+      return record;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       throw err;
@@ -214,14 +169,7 @@ export const useMockEndpoint = (projectId: string) => {
 
   const clearAllData = async (endpoint: string) => {
     try {
-      const response = await fetch(`${API_BASE}/mock/${projectId}/${endpoint.replace(/^\//, '')}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to clear data');
-      }
-
+      dataStorage.updateMockData(projectId, []);
       setData([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

@@ -1,4 +1,4 @@
-import { Schema, DataField, GenerationConfig, DataType } from '../types';
+import type { Schema, DataField, GenerationConfig, DataType } from '../types';
 
 export class MockDataGenerator {
   private generateValue(field: DataField): any {
@@ -56,10 +56,38 @@ export class MockDataGenerator {
     const adjectives = ['Beautiful', 'Smart', 'Fast', 'Creative', 'Modern', 'Classic', 'Premium', 'Basic'];
     const nouns = ['Product', 'Service', 'Solution', 'Platform', 'System', 'Application', 'Tool', 'Framework'];
 
-    let result = `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+    let result: string;
 
+    // Handle prefix/suffix/pattern generation
+    if (constraints?.prefix || constraints?.suffix || constraints?.pattern) {
+      const prefix = constraints.prefix || '';
+      const suffix = constraints.suffix || '';
+      const pattern = constraints.pattern || '';
+      const padLength = constraints.padLength || 5;
+
+      if (pattern) {
+        // Simple pattern replacement: replace # with random numbers, ? with random letters
+        result = pattern.replace(/#/g, () => Math.floor(Math.random() * 10).toString())
+                      .replace(/\?/g, () => String.fromCharCode(65 + Math.floor(Math.random() * 26)));
+      } else {
+        // Generate random number with exact length
+        const randomNum = Math.floor(Math.random() * Math.pow(10, padLength)).toString().padStart(padLength, '0');
+        result = prefix + randomNum + suffix;
+      }
+    } else {
+      result = `${adjectives[Math.floor(Math.random() * adjectives.length)]} ${nouns[Math.floor(Math.random() * nouns.length)]}`;
+    }
+
+    // Apply length constraints
     if (constraints?.minLength && result.length < constraints.minLength) {
-      result = result.padEnd(constraints.minLength, 'x');
+      // Instead of padding with 'x', generate longer random numbers for prefix/suffix patterns
+      if (constraints?.prefix || constraints?.suffix) {
+        const neededLength = constraints.minLength - result.length;
+        const extraRandom = Math.floor(Math.random() * Math.pow(10, neededLength)).toString().padStart(neededLength, '0');
+        result = result + extraRandom;
+      } else {
+        result = result.padEnd(constraints.minLength, 'x');
+      }
     }
 
     if (constraints?.maxLength && result.length > constraints.maxLength) {

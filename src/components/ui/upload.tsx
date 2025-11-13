@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { CloudUpload, File, X, Check, AlertCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 import { Button } from './button';
 
 interface FileUploadProps {

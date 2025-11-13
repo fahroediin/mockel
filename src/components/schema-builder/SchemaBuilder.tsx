@@ -4,8 +4,10 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { FileUpload } from '../ui/upload';
 import { FieldEditor } from './FieldEditor';
-import { Plus, Edit, Trash2, FileJson, Upload } from 'lucide-react';
-import { DataField, Schema } from '../../types';
+import { FieldTemplateSelector } from './FieldTemplateSelector';
+import { Plus, Edit, Trash2, FileJson, Upload, Layout } from 'lucide-react';
+import { DataField, Schema, DataType } from '../../types';
+import { FieldTemplate } from '../../constants/fieldTemplates';
 
 interface SchemaBuilderProps {
   schema: Schema;
@@ -16,6 +18,7 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
   const [editingField, setEditingField] = useState<DataField | null>(null);
   const [showFieldEditor, setShowFieldEditor] = useState(false);
   const [showUpload, setShowUpload] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
 
   const getDataTypeLabel = (type: string): string => {
     const labels: { [key: string]: string } = {
@@ -60,6 +63,28 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
   const handleAddField = () => {
     setEditingField(null);
     setShowFieldEditor(true);
+  };
+
+  const handleTemplateSelect = (template: FieldTemplate, customPrefix?: string) => {
+    const constraints = { ...template.defaultConstraints };
+
+    // Override prefix if custom one is provided
+    if (customPrefix && (template.type === 'string' || template.type === 'number')) {
+      constraints.prefix = customPrefix;
+    }
+
+    const newField: DataField = {
+      id: `field_${new Date().getTime()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: template.name,
+      type: template.type as DataType,
+      constraints: Object.keys(constraints).length > 0 ? constraints : undefined,
+    };
+
+    const updatedFields = [...schema.fields, newField];
+    onSchemaChange({
+      ...schema,
+      fields: updatedFields,
+    });
   };
 
   const handleEditField = (field: DataField) => {
@@ -352,12 +377,26 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
     );
   }
 
+  if (showTemplateSelector) {
+    return (
+      <FieldTemplateSelector
+        onTemplateSelect={handleTemplateSelect}
+        onClose={() => setShowTemplateSelector(false)}
+        existingFields={schema.fields}
+      />
+    );
+  }
+
   return (
     <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Schema Configuration</CardTitle>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setShowTemplateSelector(true)}>
+              <Layout className="w-4 h-4 mr-2" />
+              Templates
+            </Button>
             <Button variant="outline" size="sm" onClick={() => setShowUpload(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Import
@@ -368,7 +407,7 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
             </Button>
             <Button onClick={handleAddField}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Field
+              Custom Field
             </Button>
           </div>
         </div>
