@@ -85,7 +85,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                   <h3 className="font-medium text-lg mb-1">{project.name}</h3>
                   <p className="text-sm text-gray-600 mb-2">
                     Endpoint: <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                      {project.baseEndpoint}
+                      {project.baseEndpoint || 'N/A'}
                     </span>
                   </p>
                 </div>
@@ -93,7 +93,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => copyToClipboard(project.baseEndpoint)}
+                    onClick={() => copyToClipboard(project.baseEndpoint || '')}
                     title="Copy endpoint URL"
                   >
                     <Copy className="w-4 h-4" />
@@ -126,7 +126,7 @@ export const ProjectList: React.FC<ProjectListProps> = ({
               <div className="grid grid-cols-3 gap-4 mb-3">
                 <div className="text-sm">
                   <span className="text-gray-500">Fields:</span>
-                  <span className="ml-2 font-medium">{project.schema.fields.length}</span>
+                  <span className="ml-2 font-medium">{project.schema?.fields?.length || 0}</span>
                 </div>
                 <div className="text-sm">
                   <span className="text-gray-500">Records:</span>
@@ -176,13 +176,13 @@ export const ProjectList: React.FC<ProjectListProps> = ({
                 {projects.slice(0, 3).map((project) => (
                   <div key={project.id} className="flex items-center justify-between">
                     <span className="text-blue-700 truncate flex-1 mr-2">
-                      {window.location.origin}/api/mock/{project.id}/{project.baseEndpoint.replace(/^\//, '')}
+                      {window.location.origin}/api/mock/{project.id}/{(project.baseEndpoint || '').replace(/^\//, '')}
                     </span>
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => copyToClipboard(
-                        `${window.location.origin}/api/mock/${project.id}/${project.baseEndpoint.replace(/^\//, '')}`
+                        `${window.location.origin}/api/mock/${project.id}/${(project.baseEndpoint || '').replace(/^\//, '')}`
                       )}
                     >
                       <Copy className="w-3 h-3" />

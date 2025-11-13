@@ -1,16 +1,20 @@
 import React, { useState } from 'react';
 import { ProjectList } from './components/dashboard/ProjectList';
 import { ProjectEditor } from './components/dashboard/ProjectEditor';
+import { LoginPage } from './components/auth/LoginPage';
+import { RegisterPage } from './components/auth/RegisterPage';
 import { useProjects, useDataGeneration } from './hooks/useApi';
+import { useAuth } from './contexts/AuthContext';
 import { dataStorage } from './data/storage';
 import type { MockProject, Schema, GenerationConfig } from './types';
 import "./index.css";
 
-type View = 'list' | 'editor' | 'viewer';
+type View = 'list' | 'editor' | 'viewer' | 'login' | 'register';
 
 export function App() {
   const { projects, loading, createProject, updateProject, deleteProject, fetchProjects } = useProjects();
   const { generateData } = useDataGeneration();
+  const { user, isAuthenticated, logout, isLoading: authLoading } = useAuth();
   const [currentView, setCurrentView] = useState<View>('list');
   const [selectedProject, setSelectedProject] = useState<MockProject | null>(null);
 
@@ -69,7 +73,7 @@ export function App() {
   };
 
   const handleTestEndpoint = (project: MockProject) => {
-    const endpointUrl = `${window.location.origin}/api/mock/${project.id}/${project.baseEndpoint.replace(/^\//, '')}`;
+    const endpointUrl = `${window.location.origin}/api/mock/${project.id}/${(project.baseEndpoint || '').replace(/^\//, '')}`;
     window.open(endpointUrl, '_blank');
   };
 
@@ -83,13 +87,41 @@ export function App() {
     setSelectedProject(null);
   };
 
-  if (loading) {
+  const handleLogout = () => {
+    logout();
+    setCurrentView('list');
+    setSelectedProject(null);
+  };
+
+  // Show loading while checking authentication
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
         <div className="text-center text-white">
           <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
           <h2 className="text-2xl font-semibold mb-2">Mockel</h2>
           <p className="text-blue-100">Loading Professional Mock Data Generator...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login/register pages if not authenticated
+  if (!isAuthenticated) {
+    if (window.location.pathname === '/register') {
+      return <RegisterPage />;
+    }
+    return <LoginPage />;
+  }
+
+  // Main app content for authenticated users
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
+        <div className="text-center text-white">
+          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+          <h2 className="text-2xl font-semibold mb-2">Mockel</h2>
+          <p className="text-blue-100">Loading Projects...</p>
         </div>
       </div>
     );
@@ -112,6 +144,19 @@ export function App() {
                 <p className="text-gray-600 font-medium">Professional Mock Data Generator & API Builder</p>
               </div>
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-200/50">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-semibold">
+                        {user?.username?.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">{user?.username}</p>
+                      <p className="text-xs text-gray-500">{user?.email}</p>
+                    </div>
+                  </div>
+                </div>
                 <a
                   href="/api/health"
                   target="_blank"
@@ -119,6 +164,12 @@ export function App() {
                 >
                   API Health
                 </a>
+                <button
+                  onClick={handleLogout}
+                  className="text-sm bg-red-500/90 backdrop-blur-sm px-4 py-2 rounded-lg border border-red-200/50 text-white hover:bg-red-600 transition-colors duration-200 font-medium"
+                >
+                  Logout
+                </button>
               </div>
             </div>
           </div>

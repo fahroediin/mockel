@@ -1,17 +1,31 @@
 import { useState, useEffect } from 'react';
 import type { MockProject, Schema, GenerationConfig } from '../types';
-import { dataStorage } from '../data/storage';
+import { useAuth } from '../contexts/AuthContext';
 import { mockService } from '../services/mockService';
 
 export const useProjects = () => {
   const [projects, setProjects] = useState<MockProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
+
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  });
 
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const data = dataStorage.getProjects();
+      const response = await fetch('/api/projects', {
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch projects: ${response.statusText}`);
+      }
+
+      const data = await response.json();
       setProjects(data);
       setError(null);
     } catch (err) {
@@ -23,12 +37,17 @@ export const useProjects = () => {
 
   const createProject = async (projectData: Omit<MockProject, 'id' | 'createdAt' | 'updatedAt'>) => {
     try {
-      const newProject = dataStorage.createProject(
-        projectData.name,
-        projectData.baseEndpoint,
-        projectData.schema,
-        projectData.mockData
-      );
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(projectData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create project: ${response.statusText}`);
+      }
+
+      const newProject = await response.json();
       setProjects(prev => [...prev, newProject]);
       return newProject;
     } catch (err) {
@@ -39,10 +58,17 @@ export const useProjects = () => {
 
   const updateProject = async (id: string, updates: Partial<MockProject>) => {
     try {
-      const updatedProject = dataStorage.updateProject(id, updates);
-      if (!updatedProject) {
-        throw new Error('Project not found');
+      const response = await fetch(`/api/projects/${id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update project: ${response.statusText}`);
       }
+
+      const updatedProject = await response.json();
       setProjects(prev => prev.map(p => p.id === id ? updatedProject : p));
       return updatedProject;
     } catch (err) {
@@ -53,10 +79,15 @@ export const useProjects = () => {
 
   const deleteProject = async (id: string) => {
     try {
-      const success = dataStorage.deleteProject(id);
-      if (!success) {
-        throw new Error('Project not found');
+      const response = await fetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete project: ${response.statusText}`);
       }
+
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -65,8 +96,10 @@ export const useProjects = () => {
   };
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (token) {
+      fetchProjects();
+    }
+  }, [token]);
 
   return {
     projects,
@@ -109,18 +142,28 @@ export const useMockEndpoint = (projectId: string) => {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { token } = useAuth();
+
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
+  });
 
   const fetchData = async (endpoint: string) => {
     try {
       setLoading(true);
       setError(null);
 
-      const project = dataStorage.getProject(projectId);
-      if (!project) {
-        throw new Error('Project not found');
+      const response = await fetch(`/api/mock/${projectId}/${endpoint}`, {
+        headers: token ? getAuthHeaders() : {}
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch data: ${response.statusText}`);
       }
 
-      setData(project.mockData || []);
+      const result = await response.json();
+      setData(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -130,16 +173,18 @@ export const useMockEndpoint = (projectId: string) => {
 
   const addRecord = async (endpoint: string, record: any) => {
     try {
-      const project = dataStorage.getProject(projectId);
-      if (!project) {
-        throw new Error('Project not found');
+      const response = await fetch(`/api/mock/${projectId}/${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(record)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to add record: ${response.statusText}`);
       }
 
-      const newRecord = { ...record, id: Date.now().toString() };
-      const updatedData = [...(project.mockData || []), newRecord];
-
-      dataStorage.updateMockData(projectId, updatedData);
-      setData(updatedData);
+      const newRecord = await response.json();
+      setData(prev => [...prev, newRecord]);
       return newRecord;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -149,18 +194,19 @@ export const useMockEndpoint = (projectId: string) => {
 
   const updateRecord = async (endpoint: string, record: any) => {
     try {
-      const project = dataStorage.getProject(projectId);
-      if (!project) {
-        throw new Error('Project not found');
+      const response = await fetch(`/api/mock/${projectId}/${endpoint}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(record)
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update record: ${response.statusText}`);
       }
 
-      const updatedData = (project.mockData || []).map(r =>
-        r.id === record.id ? record : r
-      );
-
-      dataStorage.updateMockData(projectId, updatedData);
-      setData(updatedData);
-      return record;
+      const updatedRecord = await response.json();
+      setData(prev => prev.map(r => r.id === record.id ? updatedRecord : r));
+      return updatedRecord;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
       throw err;
@@ -169,7 +215,15 @@ export const useMockEndpoint = (projectId: string) => {
 
   const clearAllData = async (endpoint: string) => {
     try {
-      dataStorage.updateMockData(projectId, []);
+      const response = await fetch(`/api/mock/${projectId}/${endpoint}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to clear data: ${response.statusText}`);
+      }
+
       setData([]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

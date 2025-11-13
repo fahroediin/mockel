@@ -109,7 +109,7 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
 
   const getFullEndpointUrl = () => {
     const projectId = project?.id || 'new';
-    const endpoint = baseEndpoint.replace(/^\//, '');
+    const endpoint = (baseEndpoint || '').replace(/^\//, '');
     return `${window.location.origin}/api/mock/${projectId}/${endpoint}`;
   };
 
