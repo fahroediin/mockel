@@ -128,24 +128,32 @@ export class DatabaseManager {
       try {
         const schema = JSON.parse(project.schema);
         return {
-          ...project,
+          id: project.id,
+          name: project.name,
+          baseEndpoint: project.base_endpoint, // Transform snake_case to camelCase
           schema: {
             id: schema.id || 'default',
             name: schema.name || 'Default Schema',
             fields: schema.fields || []
           },
-          mockData: JSON.parse(project.mock_data || '[]')
+          mockData: JSON.parse(project.mock_data || '[]'),
+          createdAt: project.created_at,
+          updatedAt: project.updated_at
         };
       } catch (error) {
         console.error('Error parsing project schema:', error);
         return {
-          ...project,
+          id: project.id,
+          name: project.name,
+          baseEndpoint: project.base_endpoint, // Transform snake_case to camelCase
           schema: {
             id: 'default',
             name: 'Default Schema',
             fields: []
           },
-          mockData: []
+          mockData: [],
+          createdAt: project.created_at,
+          updatedAt: project.updated_at
         };
       }
     });
@@ -172,24 +180,32 @@ export class DatabaseManager {
     try {
       const schema = JSON.parse(project.schema);
       return {
-        ...project,
+        id: project.id,
+        name: project.name,
+        baseEndpoint: project.base_endpoint, // Transform snake_case to camelCase
         schema: {
           id: schema.id || 'default',
           name: schema.name || 'Default Schema',
           fields: schema.fields || []
         },
-        mockData: JSON.parse(project.mock_data || '[]')
+        mockData: JSON.parse(project.mock_data || '[]'),
+        createdAt: project.created_at,
+        updatedAt: project.updated_at
       };
     } catch (error) {
       console.error('Error parsing project schema:', error);
       return {
-        ...project,
+        id: project.id,
+        name: project.name,
+        baseEndpoint: project.base_endpoint, // Transform snake_case to camelCase
         schema: {
           id: 'default',
           name: 'Default Schema',
           fields: []
         },
-        mockData: []
+        mockData: [],
+        createdAt: project.created_at,
+        updatedAt: project.updated_at
       };
     }
   }
