@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -7,8 +7,8 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { SchemaBuilder } from '../schema-builder/SchemaBuilder';
-import { ArrowLeft, Save, Trash2, Play } from 'lucide-react';
-import { MockProject, Schema, GenerationConfig } from '../../types';
+import { ArrowLeft, Save, Trash2, Play, FileText } from 'lucide-react';
+import type { MockProject, Schema, GenerationConfig } from '../../types';
 
 const projectSchema = z.object({
   name: z.string().min(1, 'Project name is required'),
@@ -17,7 +17,7 @@ const projectSchema = z.object({
 
 interface ProjectEditorProps {
   project?: MockProject;
-  onSave: (project: MockProject) => void;
+  onSave: (project: MockProject) => Promise<MockProject>;
   onCancel: () => void;
   onGenerateData: (projectId: string, schema: Schema, config: GenerationConfig) => Promise<void>;
   onTestEndpoint: (project: MockProject) => void;
@@ -30,12 +30,38 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
   onGenerateData,
   onTestEndpoint,
 }) => {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({
+  // Get initial values from draft for new projects
+  const getInitialValues = () => {
+    if (project) {
+      return {
+        name: project.name,
+        baseEndpoint: project.baseEndpoint,
+      };
+    }
+
+    // Try to load draft for new projects
+    try {
+      const savedDraft = localStorage.getItem('projectEditorDraft');
+      if (savedDraft) {
+        const draftData = JSON.parse(savedDraft);
+        return {
+          name: draftData.name || '',
+          baseEndpoint: draftData.baseEndpoint || '/api/',
+        };
+      }
+    } catch (error) {
+      console.error('Failed to load draft form data:', error);
+    }
+
+    return {
+      name: '',
+      baseEndpoint: '/api/',
+    };
+  };
+
+  const { register, handleSubmit, watch, formState: { errors }, reset } = useForm({
     resolver: zodResolver(projectSchema),
-    defaultValues: project ? {
-      name: project.name,
-      baseEndpoint: project.baseEndpoint,
-    } : {},
+    defaultValues: getInitialValues(),
   });
 
   const [schema, setSchema] = useState<Schema>(
@@ -53,9 +79,70 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
   });
 
   const projectName = watch('name') || 'Untitled';
-  const baseEndpoint = watch('baseEndpoint') || '/api/default';
+  const baseEndpoint = watch('baseEndpoint') || '/api/custom';
 
-  const handleSave = (data: z.infer<typeof projectSchema>) => {
+  const [hasDraft, setHasDraft] = useState(false);
+
+  // Create a stable identifier for fields to prevent unnecessary re-renders
+  const fieldsIdentifier = useMemo(() => {
+    return schema.fields.map(f => `${f.id}:${f.name}:${f.type}`).join('|');
+  }, [schema.fields]);
+
+  // Debounced auto-save to prevent excessive writes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Only save if there's actual data to save (not default values)
+      const hasRealData = projectName !== 'Untitled' || baseEndpoint !== '/api/custom' || schema.fields.length > 0;
+
+      if (hasRealData) {
+        try {
+          const formData = {
+            name: projectName,
+            baseEndpoint,
+            schema: {
+              id: schema.id,
+              name: schema.name,
+              description: schema.description,
+              fields: schema.fields
+            },
+            generationConfig
+          };
+          localStorage.setItem('projectEditorDraft', JSON.stringify(formData));
+          setHasDraft(true);
+        } catch (error) {
+          console.error('Failed to save draft:', error);
+        }
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [projectName, baseEndpoint, fieldsIdentifier, generationConfig.recordCount, generationConfig.includeNulls]);
+
+  // Load draft data on mount (only for new projects)
+  useEffect(() => {
+    if (!project) { // Only for new projects
+      const savedDraft = localStorage.getItem('projectEditorDraft');
+      if (savedDraft) {
+        try {
+          const draftData = JSON.parse(savedDraft);
+
+          // Restore schema if it has fields
+          if (draftData.schema && draftData.schema.fields && draftData.schema.fields.length > 0) {
+            setSchema(draftData.schema);
+          }
+
+          // Restore generation config
+          if (draftData.generationConfig) {
+            setGenerationConfig(draftData.generationConfig);
+          }
+        } catch (error) {
+          console.error('Failed to load draft data:', error);
+        }
+      }
+    }
+  }, [project]);
+
+  const handleSave = async (data: z.infer<typeof projectSchema>) => {
     const updatedProject: MockProject = {
       id: project?.id || Date.now().toString(),
       name: data.name,
@@ -66,7 +153,11 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
       updatedAt: new Date().toISOString(),
     };
 
-    onSave(updatedProject);
+    await onSave(updatedProject);
+
+    // Clear draft after successful save
+    localStorage.removeItem('projectEditorDraft');
+    setHasDraft(false);
   };
 
   const handleGenerateData = async () => {
@@ -81,13 +172,22 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
 
       // If this is a new project, save it first to get an ID
       if (!projectId) {
-        const projectName = watch('name') || 'Untitled Project';
-        const baseEndpoint = watch('baseEndpoint') || '/api/default';
+        // Validate form first
+        const formValues = {
+          name: watch('name') || 'Untitled Project',
+          baseEndpoint: watch('baseEndpoint') || '/api/custom',
+        };
+
+        // Validate required fields
+        if (!formValues.name || !formValues.baseEndpoint) {
+          alert('Please fill in project name and base endpoint before generating data.');
+          return;
+        }
 
         const projectToSave: MockProject = {
           id: '', // Will be assigned by createProject
-          name: projectName,
-          baseEndpoint,
+          name: formValues.name,
+          baseEndpoint: formValues.baseEndpoint,
           schema,
           mockData: [],
           createdAt: new Date().toISOString(),
@@ -122,9 +222,17 @@ export const ProjectEditor: React.FC<ProjectEditorProps> = ({
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Projects
           </Button>
-          <h1 className="text-2xl font-bold">
-            {project ? 'Edit Project' : 'Create New Project'}
-          </h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold">
+              {project ? 'Edit Project' : 'Create New Project'}
+            </h1>
+            {!project && hasDraft && (
+              <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
+                <FileText className="w-3 h-3" />
+                Draft Saved
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
           {project && (

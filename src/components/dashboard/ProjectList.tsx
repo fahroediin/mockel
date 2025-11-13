@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Plus, Edit, Trash2, Play, Copy, Eye } from 'lucide-react';
-import { MockProject } from '../../types';
+import type { MockProject } from '../../types';
 
 interface ProjectListProps {
   projects: MockProject[];

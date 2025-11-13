@@ -43,6 +43,8 @@ export function App() {
           schema: project.schema,
           mockData: project.mockData || []
         });
+        // For new projects, update the selectedProject so we don't lose state
+        setSelectedProject(savedProject);
       }
 
       setCurrentView('list');
@@ -83,6 +85,18 @@ export function App() {
   };
 
   const handleCancelEdit = () => {
+    // Check if there's unsaved draft data
+    const hasDraft = localStorage.getItem('projectEditorDraft');
+
+    if (hasDraft) {
+      const shouldClearDraft = window.confirm('You have unsaved changes. Do you want to discard them?');
+      if (shouldClearDraft) {
+        localStorage.removeItem('projectEditorDraft');
+      } else {
+        return; // Don't cancel if user wants to keep draft
+      }
+    }
+
     setCurrentView('list');
     setSelectedProject(null);
   };

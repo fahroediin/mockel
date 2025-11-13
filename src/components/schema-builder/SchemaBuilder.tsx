@@ -136,7 +136,7 @@ export const SchemaBuilder: React.FC<SchemaBuilderProps> = ({ schema, onSchemaCh
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${schema.name.replace(/\s+/g, '_').toLowerCase()}_schema.json`;
+    a.download = `${(schema.name || 'schema').replace(/\s+/g, '_').toLowerCase()}_schema.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

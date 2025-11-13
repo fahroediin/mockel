@@ -335,7 +335,7 @@ const server = serve({
                 count: project.mockData?.length || 0,
                 endpoint: project.baseEndpoint,
                 projectId,
-                generatedAt: project.updatedAt
+                generatedAt: project.updatedAt || project.updated_at
               }
             });
 
